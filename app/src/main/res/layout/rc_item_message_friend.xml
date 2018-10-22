@@ -20,7 +20,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:background="@drawable/rounded_corner2"
+        android:background="@color/grey_200"
         android:padding="10dp"
         android:layout_alignParentTop="true"
         android:layout_toEndOf="@id/imageView3"
@@ -28,6 +28,6 @@
         android:layout_marginEnd="20dp"
         android:text="A"
         android:textAppearance="?android:attr/textAppearanceMedium"
-        android:textColor="#000" />
+        android:textColor="#fff" />
 
 </RelativeLayout>

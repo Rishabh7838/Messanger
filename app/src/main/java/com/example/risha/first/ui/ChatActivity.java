@@ -2,14 +2,18 @@ package com.example.risha.first.ui;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.ColorDrawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Base64;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
@@ -17,9 +21,24 @@ import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import com.example.risha.first.model.Friend;
+//import com.example.risha.first.SentimentsFragments.ApiFragment;
+//import com.example.risha.first.SentimentsFragments.SentimentInfo;
+import com.example.risha.first.model.User;
+import com.google.api.client.extensions.android.http.AndroidHttp;
+import com.google.api.client.extensions.android.json.AndroidJsonFactory;
+//import com.google.api.services.language.v1.CloudNaturalLanguage;
+//import com.google.api.services.language.v1.CloudNaturalLanguageRequestInitializer;
+//import com.google.api.services.language.v1.model.AnnotateTextRequest;
+//import com.google.api.services.language.v1.model.AnnotateTextResponse;
+//import com.google.api.services.language.v1.model.Document;
+//import com.google.api.services.language.v1.model.Features;
+import com.google.api.services.language.v1beta2.CloudNaturalLanguage;
+import com.google.api.services.language.v1beta2.CloudNaturalLanguageRequestInitializer;
+import com.google.api.services.language.v1beta2.model.AnnotateTextRequest;
+import com.google.api.services.language.v1beta2.model.AnnotateTextResponse;
+import com.google.api.services.language.v1beta2.model.Document;
+import com.google.api.services.language.v1beta2.model.Features;
 import com.google.cloud.translate.Translate;
 import com.google.cloud.translate.TranslateOptions;
 import com.google.cloud.translate.Translation;
@@ -35,13 +54,14 @@ import com.example.risha.first.data.StaticConfig;
 import com.example.risha.first.model.Consersation;
 import com.example.risha.first.model.Message;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
 
-public class ChatActivity extends AppCompatActivity implements View.OnClickListener {
+public class ChatActivity extends AppCompatActivity implements View.OnClickListener{
     private RecyclerView recyclerChat;
     public static final int VIEW_TYPE_USER_MESSAGE = 0;
     public static final int VIEW_TYPE_FRIEND_MESSAGE = 1;
@@ -68,6 +88,9 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
         //rec_lang = intentData.getStringExtra("Receiver_Language");
         rec_id = intentData.getStringExtra("Receiver_ID");
         setRecieverLanguage();
+
+        //NLP Processing here
+
 
 
         String nameFriend = intentData.getStringExtra(StaticConfig.INTENT_KEY_CHAT_FRIEND);
@@ -179,6 +202,7 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
 //                for(Friend friend: FriendsFragment.dataListFriend.getListFriend()){
 //                    if(roomId == friend.idRoom)
 //                    {
+
                         Translate(content,rec_lang);
 //                    }
 //                }
@@ -193,10 +217,14 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
     private void Translate(final String msg,final String language) {
 
 
+
         AsyncTask.execute(new Runnable() {
             @Override
             public void run() {
-                 TranslateOptions options = TranslateOptions.newBuilder()
+
+
+
+                TranslateOptions options = TranslateOptions.newBuilder()
                         .setApiKey(StaticConfig.API_KEY)
                         .build();
                  Translate translate = options.getService();
@@ -221,6 +249,7 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
         //return msg;
     }
 
+
 }
 
 class ListMessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
@@ -230,6 +259,13 @@ class ListMessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private HashMap<String, Bitmap> bitmapAvata;
     private HashMap<String, DatabaseReference> bitmapAvataDB;
     private Bitmap bitmapAvataUser;
+    private CloudNaturalLanguage naturalLanguageService;
+    private float score=0;
+    private int mColorPositive;
+    private int mColorNeutral;
+    private int mColorNegative;
+    private float sentiment = 0;
+
 
     public ListMessageAdapter(Context context, Consersation consersation, HashMap<String, Bitmap> bitmapAvata, Bitmap bitmapAvataUser) {
         this.context = context;
@@ -237,6 +273,11 @@ class ListMessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         this.bitmapAvata = bitmapAvata;
         this.bitmapAvataUser = bitmapAvataUser;
         bitmapAvataDB = new HashMap<>();
+        final Resources resources = context.getResources();
+        final Resources.Theme theme = context.getTheme();
+        mColorPositive = ResourcesCompat.getColor(resources,R.color.score_positive,theme);
+        mColorNeutral = ResourcesCompat.getColor(resources, R.color.score_neutral, theme);
+        mColorNegative = ResourcesCompat.getColor(resources, R.color.score_negative, theme);
     }
 
     @Override
@@ -254,6 +295,8 @@ class ListMessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     @Override
     public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
         if (holder instanceof ItemMessageFriendHolder) {
+            setSentiments(consersation.getListMessageData().get(position).text,((ItemMessageFriendHolder) holder).txtContent);
+
             ((ItemMessageFriendHolder) holder).txtContent.setText(consersation.getListMessageData().get(position).text);
             Bitmap currentAvata = bitmapAvata.get(consersation.getListMessageData().get(position).idSender);
             if (currentAvata != null) {
@@ -285,11 +328,73 @@ class ListMessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
             }
         } else if (holder instanceof ItemMessageUserHolder) {
+            setSentiments(consersation.getListMessageData().get(position).orignal_text, ((ItemMessageUserHolder) holder).txtContent);
             ((ItemMessageUserHolder) holder).txtContent.setText(consersation.getListMessageData().get(position).orignal_text);
             if (bitmapAvataUser != null) {
                 ((ItemMessageUserHolder) holder).avata.setImageBitmap(bitmapAvataUser);
             }
         }
+    }
+
+    private void setSentiments(final String text, final TextView txtContent) {
+
+            naturalLanguageService =
+                    new CloudNaturalLanguage.Builder(
+                            AndroidHttp.newCompatibleTransport(),
+                            new AndroidJsonFactory(),
+                            null
+                    ).setCloudNaturalLanguageRequestInitializer(
+                            new CloudNaturalLanguageRequestInitializer(StaticConfig.API_KEY)
+                    ).build();
+
+            String transcript = text;
+
+            SharedPreferenceHelper prefHelper = SharedPreferenceHelper.getInstance(context);
+            User user = prefHelper.getUserInfo();
+
+            Document document = new Document();
+            document.setType("PLAIN_TEXT");
+            document.setLanguage(user.Native_Language);
+            document.setContent(transcript);
+
+            Features features = new Features();
+            features.setExtractDocumentSentiment(true);
+
+            final AnnotateTextRequest request = new AnnotateTextRequest();
+            request.setDocument(document);
+            request.setFeatures(features);
+
+            AsyncTask.execute(new Runnable() {
+                                  @Override
+                                  public void run() {
+
+                                      try {
+                                          AnnotateTextResponse response =
+                                                  naturalLanguageService.documents()
+                                                          .annotateText(request).execute();
+
+                                          sentiment = response.getDocumentSentiment().getScore();
+                                          if (sentiment > 0.0) {
+                                              txtContent.setBackgroundColor(mColorPositive);
+                                          } else if (sentiment < 0.0) {
+                                              txtContent.setBackgroundColor(mColorNegative);
+                                          } else {
+                                              txtContent.setBackgroundColor(mColorNeutral);
+                                          }
+
+
+                                          Log.e("senti", text + "= " + sentiment);
+
+                                      } catch (IOException e) {
+                                          e.printStackTrace();
+                                      }
+
+                                  }
+                              }
+            );
+
+
+
     }
 
     @Override

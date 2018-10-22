@@ -522,15 +522,15 @@ class ListFriendsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 });
 
 
-        if (listFriend.getListFriend().get(position).message.text.length() > 0) {
+        if (listFriend.getListFriend().get(position).message.orignal_text!=null) {
             ((ItemFriendViewHolder) holder).txtMessage.setVisibility(View.VISIBLE);
             ((ItemFriendViewHolder) holder).txtTime.setVisibility(View.VISIBLE);
-            if (!listFriend.getListFriend().get(position).message.text.startsWith(id)) {
-                ((ItemFriendViewHolder) holder).txtMessage.setText(listFriend.getListFriend().get(position).message.text);
+            if (!listFriend.getListFriend().get(position).message.orignal_text.startsWith(id)) {
+                ((ItemFriendViewHolder) holder).txtMessage.setText(listFriend.getListFriend().get(position).message.orignal_text);
                 ((ItemFriendViewHolder) holder).txtMessage.setTypeface(Typeface.DEFAULT);
                 ((ItemFriendViewHolder) holder).txtName.setTypeface(Typeface.DEFAULT);
             } else {
-                ((ItemFriendViewHolder) holder).txtMessage.setText(listFriend.getListFriend().get(position).message.text.substring((id + "").length()));
+                ((ItemFriendViewHolder) holder).txtMessage.setText(listFriend.getListFriend().get(position).message.orignal_text.substring((id + "").length()));
                 ((ItemFriendViewHolder) holder).txtMessage.setTypeface(Typeface.DEFAULT_BOLD);
                 ((ItemFriendViewHolder) holder).txtName.setTypeface(Typeface.DEFAULT_BOLD);
             }
@@ -552,14 +552,14 @@ class ListFriendsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                         HashMap mapMessage = (HashMap) dataSnapshot.getValue();
                         if (mapMark.get(id) != null) {
                             if (!mapMark.get(id)) {
-                                listFriend.getListFriend().get(position).message.text = id + mapMessage.get("text");
+                                listFriend.getListFriend().get(position).message.orignal_text = id + mapMessage.get("orignal_text");
                             } else {
-                                listFriend.getListFriend().get(position).message.text = (String) mapMessage.get("text");
+                                listFriend.getListFriend().get(position).message.orignal_text = (String) mapMessage.get("orignal_text");
                             }
                             notifyDataSetChanged();
                             mapMark.put(id, false);
                         } else {
-                            listFriend.getListFriend().get(position).message.text = (String) mapMessage.get("text");
+                            listFriend.getListFriend().get(position).message.orignal_text = (String) mapMessage.get("orignal_text");
                             notifyDataSetChanged();
                         }
                         listFriend.getListFriend().get(position).message.timestamp = (long) mapMessage.get("timestamp");
