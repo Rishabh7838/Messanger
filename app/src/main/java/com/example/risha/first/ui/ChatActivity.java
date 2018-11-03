@@ -1,14 +1,17 @@
 package com.example.risha.first.ui;
 
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.ColorDrawable;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.content.res.ResourcesCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -58,6 +61,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import cn.pedant.SweetAlert.SweetAlertDialog;
 import de.hdodenhof.circleimageview.CircleImageView;
 
 
@@ -75,8 +79,9 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
     private LinearLayoutManager linearLayoutManager;
     public static HashMap<String, Bitmap> bitmapAvataFriend;
     public Bitmap bitmapAvataUser;
-
-
+    private CloudNaturalLanguage naturalLanguageService;
+    private float sentiment = 0;
+    private SweetAlertDialog warning_dialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -91,7 +96,7 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
 
         //NLP Processing here
 
-
+//         warning_dialog = new SweetAlertDialog(this,SweetAlertDialog.WARNING_TYPE);
 
         String nameFriend = intentData.getStringExtra(StaticConfig.INTENT_KEY_CHAT_FRIEND);
 
@@ -124,6 +129,7 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
                         newMessage.idReceiver = (String) mapMessage.get("idReceiver");
                         newMessage.text = (String) mapMessage.get("text");
                         newMessage.orignal_text = (String) mapMessage.get("orignal_text");
+                        newMessage.sentiment_score = (String) mapMessage.get("sentiment_score");
                         newMessage.timestamp = (long) mapMessage.get("timestamp");
                         consersation.getListMessageData().add(newMessage);
                         adapter.notifyDataSetChanged();
@@ -216,23 +222,230 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
 
     private void Translate(final String msg,final String language) {
 
+YourTask yourTask = new YourTask(msg,language,ChatActivity.this,roomId);
+yourTask.execute();
+
+//
+//        AsyncTask.execute(new Runnable() {
+//
+//            @Override
+//            public void run() {
+//
+//
+//                TranslateOptions options = TranslateOptions.newBuilder()
+//                        .setApiKey(StaticConfig.API_KEY)
+//                        .build();
+//                Translate translate = options.getService();
+//                String content = "";
+//                final Translation translation =
+//                        translate.translate(msg,
+//                                Translate.TranslateOption.targetLanguage(language));
+//                content = translation.getTranslatedText();
+//
+//                //Sentiment analysis
+//
+//                naturalLanguageService =
+//                        new CloudNaturalLanguage.Builder(
+//                                AndroidHttp.newCompatibleTransport(),
+//                                new AndroidJsonFactory(),
+//                                null
+//                        ).setCloudNaturalLanguageRequestInitializer(
+//                                new CloudNaturalLanguageRequestInitializer(StaticConfig.API_KEY)
+//                        ).build();
+//
+//                String transcript = msg;
+//
+//                SharedPreferenceHelper prefHelper = SharedPreferenceHelper.getInstance(ChatActivity.this);
+//                User user = prefHelper.getUserInfo();
+//
+//                Document document = new Document();
+//                document.setType("PLAIN_TEXT");
+//                document.setLanguage(user.Native_Language);
+//                document.setContent(transcript);
+//
+//                Features features = new Features();
+//                features.setExtractDocumentSentiment(true);
+//
+//                final AnnotateTextRequest request = new AnnotateTextRequest();
+//                request.setDocument(document);
+//                request.setFeatures(features);
+//
+//                try {
+//                    AnnotateTextResponse response =
+//                            naturalLanguageService.documents()
+//                                    .annotateText(request).execute();
+//
+//                    sentiment = response.getDocumentSentiment().getScore();
+//
+//
+//                    Log.e("senti", msg + "= " + sentiment);
+//
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+//
+//
+//
+//
+//                if (sentiment <= -0.3) {
+//                    final String finalContent = content;
+//                    AlertDialog.Builder builder;
+//                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+//                        builder = new AlertDialog.Builder(ChatActivity.this, android.R.style.Theme_Material_Dialog_Alert);
+//                    } else {
+//                        builder = new AlertDialog.Builder(ChatActivity.this);
+//                    }
+//                    builder.setTitle("This message contains violent words :(")
+//                            .setMessage("Are you sure you want to send this ?")
+//                            .setPositiveButton("Send It!", new DialogInterface.OnClickListener() {
+//                                public void onClick(DialogInterface dialog, int which) {
+//
+//                                    Message newMessage = new Message();
+//                                    newMessage.text = finalContent;
+//                                    newMessage.orignal_text = msg;
+//                                    newMessage.idSender = StaticConfig.UID;
+//                                    newMessage.idReceiver = roomId;
+//                                    newMessage.sentiment_score = Float.toString(sentiment);
+//                                    newMessage.timestamp = System.currentTimeMillis();
+//                                    FirebaseDatabase.getInstance().getReference().child("message/" + roomId).push().setValue(newMessage);
+//                                }
+//                            })
+//                            .setNegativeButton("Don't Send!", new DialogInterface.OnClickListener() {
+//                                public void onClick(DialogInterface dialog, int which) {
+//                                    dialog.dismiss();
+//                                }
+//                            })
+//                            .setIcon(android.R.drawable.ic_dialog_alert)
+//                            .show();
+//                } else {
+//                    if (content.length() > 0) {
+//
+//                        Message newMessage = new Message();
+//                        newMessage.text = content;
+//                        newMessage.orignal_text = msg;
+//                        newMessage.idSender = StaticConfig.UID;
+//                        newMessage.idReceiver = roomId;
+//                        newMessage.sentiment_score = Float.toString(sentiment);
+//                        newMessage.timestamp = System.currentTimeMillis();
+//                        FirebaseDatabase.getInstance().getReference().child("message/" + roomId).push().setValue(newMessage);
+//                    }
+//                }
+//            }
+//        });
+
+        //return msg;
+    }
+
+    private static class YourTask extends AsyncTask<String, Void, String>
+    {
+        String msg,language;
+        Context context = null;
+        private CloudNaturalLanguage naturalLanguageService;
+        private float sentiment = 0;
+        private String roomId= "";
+        String content = "";
+        AlertDialog.Builder builder;
+        public YourTask(String msg, String language, Context context, String roomID) {
+            this.msg = msg;
+            this.language = language;
+            this.context = context;
+            roomId = roomID;
+            //this.naturalLanguageService = naturalLanguageService;
+        }
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+                builder = new AlertDialog.Builder(context);
+        }
+
+        @Override
+        protected String doInBackground(String... urls)
+        {
+            TranslateOptions options = TranslateOptions.newBuilder()
+                    .setApiKey(StaticConfig.API_KEY)
+                    .build();
+            Translate translate = options.getService();
+
+            final Translation translation =
+                    translate.translate(msg,
+                            Translate.TranslateOption.targetLanguage(language));
+            content = translation.getTranslatedText();
+
+            //Sentiment analysis
+
+            naturalLanguageService =
+                    new CloudNaturalLanguage.Builder(
+                            AndroidHttp.newCompatibleTransport(),
+                            new AndroidJsonFactory(),
+                            null
+                    ).setCloudNaturalLanguageRequestInitializer(
+                            new CloudNaturalLanguageRequestInitializer(StaticConfig.API_KEY)
+                    ).build();
+
+            String transcript = msg;
+
+            SharedPreferenceHelper prefHelper = SharedPreferenceHelper.getInstance(context);
+            User user = prefHelper.getUserInfo();
+
+            Document document = new Document();
+            document.setType("PLAIN_TEXT");
+            document.setLanguage(user.Native_Language);
+            document.setContent(transcript);
+
+            Features features = new Features();
+            features.setExtractDocumentSentiment(true);
+
+            final AnnotateTextRequest request = new AnnotateTextRequest();
+            request.setDocument(document);
+            request.setFeatures(features);
+
+            try {
+                AnnotateTextResponse response =
+                        naturalLanguageService.documents()
+                                .annotateText(request).execute();
+
+                sentiment = response.getDocumentSentiment().getScore();
 
 
-        AsyncTask.execute(new Runnable() {
-            @Override
-            public void run() {
+                Log.e("senti", msg + "= " + sentiment);
 
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 
+            return null;
+        }
 
-                TranslateOptions options = TranslateOptions.newBuilder()
-                        .setApiKey(StaticConfig.API_KEY)
-                        .build();
-                 Translate translate = options.getService();
-                String content = "";
-                final Translation translation =
-                        translate.translate(msg,
-                                Translate.TranslateOption.targetLanguage(language));
-                content = translation.getTranslatedText();
+        @Override
+        protected void onPostExecute(String result)
+        {
+            if (sentiment <= -0.3) {
+                final String finalContent = content;
+
+                builder.setTitle("This message contains violent words :(")
+                        .setMessage("Are you sure you want to send this ?")
+                        .setPositiveButton("Don't Send!", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                            }
+                        })
+                        .setNegativeButton("Send It!", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+
+                                Message newMessage = new Message();
+                                newMessage.text = finalContent;
+                                newMessage.orignal_text = msg;
+                                newMessage.idSender = StaticConfig.UID;
+                                newMessage.idReceiver = roomId;
+                                newMessage.sentiment_score = Float.toString(sentiment);
+                                newMessage.timestamp = System.currentTimeMillis();
+                                FirebaseDatabase.getInstance().getReference().child("message/" + roomId).push().setValue(newMessage);
+                            }
+                        })
+                        .setIcon(R.drawable.ic_alert_message_24dp)
+                        .show();
+            } else {
                 if (content.length() > 0) {
 
                     Message newMessage = new Message();
@@ -240,17 +453,16 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
                     newMessage.orignal_text = msg;
                     newMessage.idSender = StaticConfig.UID;
                     newMessage.idReceiver = roomId;
+                    newMessage.sentiment_score = Float.toString(sentiment);
                     newMessage.timestamp = System.currentTimeMillis();
                     FirebaseDatabase.getInstance().getReference().child("message/" + roomId).push().setValue(newMessage);
                 }
             }
-        });
-
-        //return msg;
+        }
     }
-
-
 }
+
+
 
 class ListMessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
@@ -259,12 +471,12 @@ class ListMessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private HashMap<String, Bitmap> bitmapAvata;
     private HashMap<String, DatabaseReference> bitmapAvataDB;
     private Bitmap bitmapAvataUser;
-    private CloudNaturalLanguage naturalLanguageService;
+
     private float score=0;
     private int mColorPositive;
     private int mColorNeutral;
     private int mColorNegative;
-    private float sentiment = 0;
+
 
 
     public ListMessageAdapter(Context context, Consersation consersation, HashMap<String, Bitmap> bitmapAvata, Bitmap bitmapAvataUser) {
@@ -295,9 +507,16 @@ class ListMessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     @Override
     public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
         if (holder instanceof ItemMessageFriendHolder) {
-            setSentiments(consersation.getListMessageData().get(position).text,((ItemMessageFriendHolder) holder).txtContent);
-
+            //setSentiments(consersation.getListMessageData().get(position).text,((ItemMessageFriendHolder) holder).txtContent);
+            score = Float.parseFloat(consersation.getListMessageData().get(position).sentiment_score);
             ((ItemMessageFriendHolder) holder).txtContent.setText(consersation.getListMessageData().get(position).text);
+            if (score > 0.0) {
+                ((ItemMessageFriendHolder) holder).txtContent.setBackgroundColor(mColorPositive);
+            } else if (score < 0.0) {
+                ((ItemMessageFriendHolder) holder).txtContent.setBackgroundColor(mColorNegative);
+            } else {
+                ((ItemMessageFriendHolder) holder).txtContent.setBackgroundColor(mColorNeutral);
+            }
             Bitmap currentAvata = bitmapAvata.get(consersation.getListMessageData().get(position).idSender);
             if (currentAvata != null) {
                 ((ItemMessageFriendHolder) holder).avata.setImageBitmap(currentAvata);
@@ -328,74 +547,26 @@ class ListMessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
             }
         } else if (holder instanceof ItemMessageUserHolder) {
-            setSentiments(consersation.getListMessageData().get(position).orignal_text, ((ItemMessageUserHolder) holder).txtContent);
+            //setSentiments(consersation.getListMessageData().get(position).orignal_text, ((ItemMessageUserHolder) holder).txtContent);
             ((ItemMessageUserHolder) holder).txtContent.setText(consersation.getListMessageData().get(position).orignal_text);
+            score = Float.parseFloat(consersation.getListMessageData().get(position).sentiment_score);
+            //((ItemMessageUserHolder) holder).txtContent.setText(consersation.getListMessageData().get(position).text);
+            if (score > 0.0) {
+                ((ItemMessageUserHolder) holder).txtContent.setBackgroundColor(mColorPositive);
+            } else if (score < 0.0) {
+                ((ItemMessageUserHolder) holder).txtContent.setBackgroundColor(mColorNegative);
+            } else {
+                ((ItemMessageUserHolder) holder).txtContent.setBackgroundColor(mColorNeutral);
+            }
             if (bitmapAvataUser != null) {
                 ((ItemMessageUserHolder) holder).avata.setImageBitmap(bitmapAvataUser);
             }
         }
     }
 
-    private void setSentiments(final String text, final TextView txtContent) {
-
-            naturalLanguageService =
-                    new CloudNaturalLanguage.Builder(
-                            AndroidHttp.newCompatibleTransport(),
-                            new AndroidJsonFactory(),
-                            null
-                    ).setCloudNaturalLanguageRequestInitializer(
-                            new CloudNaturalLanguageRequestInitializer(StaticConfig.API_KEY)
-                    ).build();
-
-            String transcript = text;
-
-            SharedPreferenceHelper prefHelper = SharedPreferenceHelper.getInstance(context);
-            User user = prefHelper.getUserInfo();
-
-            Document document = new Document();
-            document.setType("PLAIN_TEXT");
-            document.setLanguage(user.Native_Language);
-            document.setContent(transcript);
-
-            Features features = new Features();
-            features.setExtractDocumentSentiment(true);
-
-            final AnnotateTextRequest request = new AnnotateTextRequest();
-            request.setDocument(document);
-            request.setFeatures(features);
-
-            AsyncTask.execute(new Runnable() {
-                                  @Override
-                                  public void run() {
-
-                                      try {
-                                          AnnotateTextResponse response =
-                                                  naturalLanguageService.documents()
-                                                          .annotateText(request).execute();
-
-                                          sentiment = response.getDocumentSentiment().getScore();
-                                          if (sentiment > 0.0) {
-                                              txtContent.setBackgroundColor(mColorPositive);
-                                          } else if (sentiment < 0.0) {
-                                              txtContent.setBackgroundColor(mColorNegative);
-                                          } else {
-                                              txtContent.setBackgroundColor(mColorNeutral);
-                                          }
-
-
-                                          Log.e("senti", text + "= " + sentiment);
-
-                                      } catch (IOException e) {
-                                          e.printStackTrace();
-                                      }
-
-                                  }
-                              }
-            );
 
 
 
-    }
 
     @Override
     public int getItemViewType(int position) {
