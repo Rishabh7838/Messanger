@@ -11,7 +11,10 @@ public class StaticConfig {
     public static String STR_EXTRA_PASSWORD = "password";
     public static String STR_DEFAULT_BASE64 = "default";
     public static String UID = "";
-    public static final String API_KEY = "Api_Key";
+
+    //public static final String API_KEY = "Api_Key";
+
+    public static final String API_KEY = "API-KEY";
     public static final String Language = "hi";
     //TODO only use this UID for debug mode
 //    public static String UID = "6kU0SbJPF5QJKZTfvW1BqKolrx22";
