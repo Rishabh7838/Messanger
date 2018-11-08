@@ -98,6 +98,23 @@ public class GroupFragment extends Fragment implements SwipeRefreshLayout.OnRefr
             mSwipeRefreshLayout.setRefreshing(true);
             getListGroup();
         }
+
+        FirebaseDatabase.getInstance().getReference().child("user/"+ StaticConfig.UID+"/group").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if(dataSnapshot.exists()){
+                    if(dataSnapshot.getChildrenCount()!=listGroup.size())
+                        onRefresh();
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
+
         return layout;
     }
 
@@ -401,6 +418,7 @@ class ListGroupsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
                 Intent intent = new Intent(context, ChatActivity.class);
                 intent.putExtra(StaticConfig.INTENT_KEY_CHAT_FRIEND, groupName);
+                intent.putExtra("Sender", "G");
                 ArrayList<CharSequence> idFriend = new ArrayList<>();
                 ChatActivity.bitmapAvataFriend = new HashMap<>();
                 for(String id : listGroup.get(position).member) {

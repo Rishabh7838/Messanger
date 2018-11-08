@@ -14,7 +14,7 @@ public class StaticConfig {
 
     //public static final String API_KEY = "Api_Key";
 
-    public static final String API_KEY = "API-KEY";
+    public static final String API_KEY = "Khud ki generate kro";
     public static final String Language = "hi";
     //TODO only use this UID for debug mode
 //    public static String UID = "6kU0SbJPF5QJKZTfvW1BqKolrx22";

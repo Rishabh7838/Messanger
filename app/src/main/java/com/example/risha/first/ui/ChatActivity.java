@@ -27,6 +27,7 @@ import android.widget.TextView;
 
 //import com.example.risha.first.SentimentsFragments.ApiFragment;
 //import com.example.risha.first.SentimentsFragments.SentimentInfo;
+import com.example.risha.first.MainActivity;
 import com.example.risha.first.model.User;
 import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.extensions.android.json.AndroidJsonFactory;
@@ -71,7 +72,7 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
     public static final int VIEW_TYPE_FRIEND_MESSAGE = 1;
     private ListMessageAdapter adapter;
     private String roomId,rec_id="";
-    private static  String rec_lang="";
+    private static  String rec_lang="",send_lang="",send_name="";
     private ArrayList<CharSequence> idFriend;
     private Consersation consersation;
     private ImageButton btnSend;
@@ -81,7 +82,9 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
     public Bitmap bitmapAvataUser;
     private CloudNaturalLanguage naturalLanguageService;
     private float sentiment = 0;
-    private SweetAlertDialog warning_dialog;
+    //private SweetAlertDialog warning_dialog;
+    private String sender ="";
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,6 +93,7 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
         Intent intentData = getIntent();
         idFriend = intentData.getCharSequenceArrayListExtra(StaticConfig.INTENT_KEY_CHAT_ID);
         roomId = intentData.getStringExtra(StaticConfig.INTENT_KEY_CHAT_ROOM_ID);
+        sender = intentData.getStringExtra("Sender");
         //rec_lang = intentData.getStringExtra("Receiver_Language");
         rec_id = intentData.getStringExtra("Receiver_ID");
         setRecieverLanguage();
@@ -118,7 +122,9 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
             linearLayoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
             recyclerChat = (RecyclerView) findViewById(R.id.recyclerChat);
             recyclerChat.setLayoutManager(linearLayoutManager);
-            adapter = new ListMessageAdapter(this, consersation, bitmapAvataFriend, bitmapAvataUser);
+            if(sender==null)
+                sender = "A";
+            adapter = new ListMessageAdapter(this, consersation, bitmapAvataFriend, bitmapAvataUser,sender);
             FirebaseDatabase.getInstance().getReference().child("message/" + roomId).addChildEventListener(new ChildEventListener() {
                 @Override
                 public void onChildAdded(DataSnapshot dataSnapshot, String s) {
@@ -131,6 +137,7 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
                         newMessage.orignal_text = (String) mapMessage.get("orignal_text");
                         newMessage.sentiment_score = (String) mapMessage.get("sentiment_score");
                         newMessage.timestamp = (long) mapMessage.get("timestamp");
+                        newMessage.sender_name = (String) mapMessage.get("sender_name");
                         consersation.getListMessageData().add(newMessage);
                         adapter.notifyDataSetChanged();
                         linearLayoutManager.scrollToPosition(consersation.getListMessageData().size() - 1);
@@ -169,6 +176,24 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
                 if(dataSnapshot.exists()){
                     rec_lang = dataSnapshot.child("Native_Language").getValue().toString();
                   //  Toast.makeText(ChatActivity.this, rec_lang, Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
+
+
+        FirebaseDatabase.getInstance().getReference().child("user/" + StaticConfig.UID).addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if(dataSnapshot.exists()){
+                    send_lang = dataSnapshot.child("Native_Language").getValue().toString();
+                    send_name = dataSnapshot.child("name").getValue().toString();
+                    //  Toast.makeText(ChatActivity.this, rec_lang, Toast.LENGTH_SHORT).show();
                 }
             }
 
@@ -220,10 +245,18 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    private void Translate(final String msg,final String language) {
+    private void Translate(final String msg, String language) {
+//        String temp = "";
+//       // if(sender!=null)
+//            temp = "G";
+//        else
+//            temp = "A";
 
-YourTask yourTask = new YourTask(msg,language,ChatActivity.this,roomId);
-yourTask.execute();
+
+
+
+        YourTask yourTask = new YourTask(msg, language, ChatActivity.this, roomId,sender);
+        yourTask.execute();
 
 //
 //        AsyncTask.execute(new Runnable() {
@@ -343,12 +376,15 @@ yourTask.execute();
         private CloudNaturalLanguage naturalLanguageService;
         private float sentiment = 0;
         private String roomId= "";
+        private String sender = "";
         String content = "";
+        private int f = -1;
         AlertDialog.Builder builder;
-        public YourTask(String msg, String language, Context context, String roomID) {
+        public YourTask(String msg, String language, Context context, String roomID,String sender) {
             this.msg = msg;
             this.language = language;
             this.context = context;
+            this.sender = sender;
             roomId = roomID;
             //this.naturalLanguageService = naturalLanguageService;
         }
@@ -362,15 +398,35 @@ yourTask.execute();
         @Override
         protected String doInBackground(String... urls)
         {
-            TranslateOptions options = TranslateOptions.newBuilder()
-                    .setApiKey(StaticConfig.API_KEY)
-                    .build();
-            Translate translate = options.getService();
+            SharedPreferenceHelper prefHelper = SharedPreferenceHelper.getInstance(context);
+            User user = prefHelper.getUserInfo();
 
-            final Translation translation =
-                    translate.translate(msg,
-                            Translate.TranslateOption.targetLanguage(language));
-            content = translation.getTranslatedText();
+            if(sender.equals("G")) {
+                if(!send_lang.equals("en")) {
+                    language = "en";
+                    f=1;
+                }
+                else f=0;
+            }
+            else if(sender.equals("A")) {
+                if(send_lang.equals(language)) {
+                    f=0;
+                }
+                else f=1;
+            }
+            if(f==1 || f==-1) {
+                TranslateOptions options = TranslateOptions.newBuilder()
+                        .setApiKey(StaticConfig.API_KEY)
+                        .build();
+                Translate translate = options.getService();
+
+                final Translation translation =
+                        translate.translate(msg,
+                                Translate.TranslateOption.targetLanguage(language));
+                content = translation.getTranslatedText();
+            }
+            else
+                content = msg;
 
             //Sentiment analysis
 
@@ -385,12 +441,10 @@ yourTask.execute();
 
             String transcript = msg;
 
-            SharedPreferenceHelper prefHelper = SharedPreferenceHelper.getInstance(context);
-            User user = prefHelper.getUserInfo();
 
             Document document = new Document();
             document.setType("PLAIN_TEXT");
-            document.setLanguage(user.Native_Language);
+            document.setLanguage(send_lang);
             document.setContent(transcript);
 
             Features features = new Features();
@@ -434,12 +488,18 @@ yourTask.execute();
                             public void onClick(DialogInterface dialog, int which) {
 
                                 Message newMessage = new Message();
+                                if(sender.equals("G")) {
+                                    newMessage.orignal_text = finalContent;
+                                }
+                                else
+                                    newMessage.orignal_text = msg;
+
                                 newMessage.text = finalContent;
-                                newMessage.orignal_text = msg;
                                 newMessage.idSender = StaticConfig.UID;
                                 newMessage.idReceiver = roomId;
                                 newMessage.sentiment_score = Float.toString(sentiment);
                                 newMessage.timestamp = System.currentTimeMillis();
+                                newMessage.sender_name = send_name;
                                 FirebaseDatabase.getInstance().getReference().child("message/" + roomId).push().setValue(newMessage);
                             }
                         })
@@ -449,12 +509,18 @@ yourTask.execute();
                 if (content.length() > 0) {
 
                     Message newMessage = new Message();
+                    if(sender.equals("G")) {
+                        newMessage.orignal_text = content;
+                    }
+                    else
+                        newMessage.orignal_text = msg;
+
                     newMessage.text = content;
-                    newMessage.orignal_text = msg;
                     newMessage.idSender = StaticConfig.UID;
                     newMessage.idReceiver = roomId;
                     newMessage.sentiment_score = Float.toString(sentiment);
                     newMessage.timestamp = System.currentTimeMillis();
+                    newMessage.sender_name = send_name;
                     FirebaseDatabase.getInstance().getReference().child("message/" + roomId).push().setValue(newMessage);
                 }
             }
@@ -476,14 +542,15 @@ class ListMessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private int mColorPositive;
     private int mColorNeutral;
     private int mColorNegative;
+    private String sender="";
 
 
-
-    public ListMessageAdapter(Context context, Consersation consersation, HashMap<String, Bitmap> bitmapAvata, Bitmap bitmapAvataUser) {
+    public ListMessageAdapter(Context context, Consersation consersation, HashMap<String, Bitmap> bitmapAvata, Bitmap bitmapAvataUser,String sender) {
         this.context = context;
         this.consersation = consersation;
         this.bitmapAvata = bitmapAvata;
         this.bitmapAvataUser = bitmapAvataUser;
+        this.sender = sender;
         bitmapAvataDB = new HashMap<>();
         final Resources resources = context.getResources();
         final Resources.Theme theme = context.getTheme();
@@ -509,6 +576,10 @@ class ListMessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         if (holder instanceof ItemMessageFriendHolder) {
             //setSentiments(consersation.getListMessageData().get(position).text,((ItemMessageFriendHolder) holder).txtContent);
             score = Float.parseFloat(consersation.getListMessageData().get(position).sentiment_score);
+            if(sender.equals("G"))
+                ((ItemMessageFriendHolder) holder).Name.setText(consersation.getListMessageData().get(position).sender_name);
+            else
+                ((ItemMessageFriendHolder) holder).Name.setVisibility(View.GONE);
             ((ItemMessageFriendHolder) holder).txtContent.setText(consersation.getListMessageData().get(position).text);
             if (score > 0.0) {
                 ((ItemMessageFriendHolder) holder).txtContent.setBackgroundColor(mColorPositive);
@@ -593,10 +664,11 @@ class ItemMessageUserHolder extends RecyclerView.ViewHolder {
 class ItemMessageFriendHolder extends RecyclerView.ViewHolder {
     public TextView txtContent;
     public CircleImageView avata;
-
+    public TextView Name;
     public ItemMessageFriendHolder(View itemView) {
         super(itemView);
-        txtContent = (TextView) itemView.findViewById(R.id.textContentFriend);
-        avata = (CircleImageView) itemView.findViewById(R.id.imageView3);
+        txtContent = itemView.findViewById(R.id.textContentFriend);
+        avata =  itemView.findViewById(R.id.imageView3);
+        Name = itemView.findViewById(R.id.recNameTV);
     }
 }

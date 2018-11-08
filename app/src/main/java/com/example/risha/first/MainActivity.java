@@ -53,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         if(toolbar != null) {
             setSupportActionBar(toolbar);
-            getSupportActionBar().setTitle("RivChat");
+            getSupportActionBar().setTitle("Multi Lingual Messenger");
         }
 
         viewPager = (ViewPager) findViewById(R.id.viewpager);
@@ -197,7 +197,7 @@ public class MainActivity extends AppCompatActivity {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.about) {
-            Toast.makeText(this, "Rivchat version 1.0", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Multi Lingual Messenger version 1.0", Toast.LENGTH_LONG).show();
             return true;
         }
 

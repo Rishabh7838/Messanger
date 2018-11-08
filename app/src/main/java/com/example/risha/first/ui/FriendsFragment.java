@@ -142,6 +142,26 @@ public class FriendsFragment extends Fragment implements SwipeRefreshLayout.OnRe
         IntentFilter intentFilter = new IntentFilter(ACTION_DELETE_FRIEND);
         getContext().registerReceiver(deleteFriendReceiver, intentFilter);
 
+
+        FirebaseDatabase.getInstance().getReference().child("friend/" + StaticConfig.UID).addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if(dataSnapshot.exists()){
+                    if(dataSnapshot.getChildrenCount()!=listFriendID.size())
+                        onRefresh();
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
+
+
+
+
         return layout;
     }
 
@@ -552,14 +572,23 @@ class ListFriendsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                         HashMap mapMessage = (HashMap) dataSnapshot.getValue();
                         if (mapMark.get(id) != null) {
                             if (!mapMark.get(id)) {
-                                listFriend.getListFriend().get(position).message.orignal_text = id + mapMessage.get("orignal_text");
+                                if(mapMessage.get("idSender").toString().equals(StaticConfig.UID))
+                                    listFriend.getListFriend().get(position).message.orignal_text = id + mapMessage.get("orignal_text");
+                                else
+                                    listFriend.getListFriend().get(position).message.orignal_text = id + mapMessage.get("text");
                             } else {
-                                listFriend.getListFriend().get(position).message.orignal_text = (String) mapMessage.get("orignal_text");
+                                if(mapMessage.get("idSender").toString().equals(StaticConfig.UID))
+                                    listFriend.getListFriend().get(position).message.orignal_text = (String) mapMessage.get("orignal_text");
+                                else
+                                    listFriend.getListFriend().get(position).message.orignal_text = (String) mapMessage.get("text");
                             }
                             notifyDataSetChanged();
                             mapMark.put(id, false);
                         } else {
-                            listFriend.getListFriend().get(position).message.orignal_text = (String) mapMessage.get("orignal_text");
+                            if(mapMessage.get("idSender").toString().equals(StaticConfig.UID))
+                                listFriend.getListFriend().get(position).message.orignal_text = (String) mapMessage.get("orignal_text");
+                            else
+                                listFriend.getListFriend().get(position).message.orignal_text = (String) mapMessage.get("text");
                             notifyDataSetChanged();
                         }
                         listFriend.getListFriend().get(position).message.timestamp = (long) mapMessage.get("timestamp");
